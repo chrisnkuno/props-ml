@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, File, Loader2, AlertCircle } from "lucide-react";
+import { Upload, File, Loader2, AlertCircle, ArrowLeft, CornerDownRight } from "lucide-react";
 import { uploadDocument } from "@/lib/api";
+import Link from "next/link";
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -26,7 +27,6 @@ export default function UploadPage() {
 
     try {
       const result = await uploadDocument(file);
-      // Store result in session storage for the results page
       sessionStorage.setItem("inference_result", JSON.stringify(result));
       router.push("/result");
     } catch (err: any) {
@@ -37,80 +37,111 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-white font-sans text-zinc-900">
-      <main className="flex w-full max-w-2xl flex-col items-center px-6 py-24">
-        <h1 className="mb-2 text-3xl font-light tracking-tight">Upload Document</h1>
-        <p className="mb-12 text-zinc-500">Securely process your sensitive files inside a TEE.</p>
+    <div className="flex min-h-screen flex-col bg-white text-black font-sans font-extralight tracking-tight">
+      <nav className="p-8 flex justify-between items-start z-40">
+        <Link href="/" className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 hover:opacity-100 transition-opacity">
+          <ArrowLeft className="h-3 w-3" />
+          Back.Index
+        </Link>
+        <div className="text-right">
+          <div className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-1">Status</div>
+          <div className="text-xs font-normal lowercase tracking-tighter">enclave.active</div>
+        </div>
+      </nav>
 
-        <div 
-          className={`group relative flex w-full flex-col items-center justify-center rounded-3xl border-2 border-dashed p-12 transition-all ${
-            file ? 'border-zinc-900 bg-zinc-50' : 'border-zinc-200 hover:border-zinc-300'
-          }`}
-        >
-          <input
-            type="file"
-            className="absolute inset-0 z-10 cursor-pointer opacity-0"
-            onChange={handleFileChange}
-            accept=".pdf,.json,.txt"
-          />
-          
-          <div className="flex flex-col items-center text-center">
-            {file ? (
-              <>
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-900 text-white">
-                  <File className="h-8 w-8" />
-                </div>
-                <p className="mb-1 font-medium text-zinc-900">{file.name}</p>
-                <p className="text-xs text-zinc-400 uppercase tracking-widest">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-              </>
-            ) : (
-              <>
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-50 text-zinc-400 group-hover:bg-zinc-100 group-hover:text-zinc-500 transition-colors">
-                  <Upload className="h-8 w-8" />
-                </div>
-                <p className="mb-1 font-medium text-zinc-900">Drop your file here</p>
-                <p className="text-sm text-zinc-500 text-zinc-400">PDF, JSON or TXT up to 10MB</p>
-              </>
+      <main className="flex-1 flex flex-col pt-24 pb-32 px-8 sm:px-16 lg:px-32">
+        <div className="grid grid-cols-1 lg:grid-cols-[400px,1fr] gap-24 items-start">
+          <header className="max-w-xs">
+            <h1 className="text-5xl font-thin leading-[1.1] mb-8">
+              Data <br />
+              Ingestion.
+            </h1>
+            <p className="text-sm text-zinc-400 font-extralight leading-relaxed mb-12">
+              Submit your sensitive documents for TEE-isolated processing. 
+              We support PDF, JSON, and raw text formats.
+            </p>
+            
+            <div className="space-y-4 pt-8 border-t border-zinc-50">
+              <Requirement item="No data persistence outside TEE" />
+              <Requirement item="Automatic cryptographic binding" />
+              <Requirement item="Intel TDX protected memory" />
+            </div>
+          </header>
+
+          <div className="relative">
+            <div 
+              className={`group relative flex w-full flex-col items-center justify-center rounded-[40px] border border-zinc-100 bg-white p-24 transition-all duration-700 ${
+                file ? 'bg-zinc-50/50' : 'hover:bg-zinc-50/20'
+              }`}
+            >
+              <input
+                type="file"
+                className="absolute inset-0 z-10 cursor-pointer opacity-0"
+                onChange={handleFileChange}
+                accept=".pdf,.json,.txt"
+              />
+              
+              <div className="flex flex-col items-center text-center max-w-sm">
+                {file ? (
+                  <>
+                    <div className="mb-8 p-6 rounded-full border border-zinc-200">
+                      <File className="h-8 w-8 stroke-[1px]" />
+                    </div>
+                    <p className="text-lg font-normal mb-2 tracking-tighter">{file.name}</p>
+                    <p className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest">
+                      Confirmed / {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-8 p-12 rounded-full border border-zinc-50 group-hover:bg-white transition-all duration-700">
+                      <Upload className="h-8 w-8 stroke-[1px] opacity-20 group-hover:opacity-40 transition-opacity" />
+                    </div>
+                    <p className="text-sm font-normal mb-1 self-start tracking-wider uppercase opacity-40">Drag document</p>
+                    <p className="text-xs text-zinc-400 font-extralight leading-relaxed text-left">
+                      Your data is encrypted locally and transferred directly to the dStack enclave via a secure transport layer.
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-8 flex items-center gap-3 text-xs font-mono text-red-500 uppercase tracking-widest">
+                <AlertCircle className="h-3 w-3" />
+                Error: {error}
+              </div>
             )}
+
+            <button
+              onClick={handleUpload}
+              disabled={!file || loading}
+              className="mt-12 flex items-center gap-8 group hover:gap-12 transition-all duration-500 disabled:opacity-20"
+            >
+              <div className="h-2 w-2 rounded-full bg-black"></div>
+              <span className="text-sm font-mono uppercase tracking-[0.5em]">
+                {loading ? "Processing_Document..." : "Execute_Inference"}
+              </span>
+              {loading && <Loader2 className="h-4 w-4 animate-spin opacity-40" />}
+            </button>
           </div>
         </div>
-
-        {error && (
-          <div className="mt-6 flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 ring-1 ring-red-100">
-            <AlertCircle className="h-4 w-4" />
-            {error}
-          </div>
-        )}
-
-        <button
-          onClick={handleUpload}
-          disabled={!file || loading}
-          className="mt-12 flex w-full items-center justify-center gap-2 rounded-full bg-zinc-900 py-4 text-white transition-all hover:bg-zinc-800 disabled:opacity-30"
-        >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Shield className="h-4 w-4" />
-          )}
-          <span className="font-medium">{loading ? "Processing..." : "Run Private Inference"}</span>
-        </button>
       </main>
+
+      <footer className="p-8 flex justify-end">
+        <div className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-20">
+          TDX.TEE / SHA-256 Enabled
+        </div>
+      </footer>
     </div>
   );
 }
 
-function Shield({ className }: { className?: string }) {
+function Requirement({ item }: { item: string }) {
   return (
-    <svg 
-      className={className} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-    </svg>
+    <div className="flex items-center gap-3 text-[9px] font-mono uppercase tracking-widest opacity-40">
+      <div className="h-px w-3 bg-zinc-300"></div>
+      {item}
+    </div>
   );
 }

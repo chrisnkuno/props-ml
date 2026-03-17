@@ -1,26 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { ShieldCheck, FileCheck, Copy, Check, ExternalLink, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { InferenceResult } from "@/lib/api";
+import { CheckCircle2, Copy, ArrowLeft, Terminal, CornerDownRight } from "lucide-react";
 
 export default function ResultPage() {
-  const [result, setResult] = useState<InferenceResult | null>(null);
+  const [result, setResult] = useState<any>(null);
   const [copied, setCopied] = useState(false);
-  const router = useRouter();
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("inference_result");
-    if (!stored) {
-      router.push("/upload");
-      return;
+    const data = sessionStorage.getItem("inference_result");
+    if (data) {
+      setResult(JSON.parse(data));
     }
-    setResult(JSON.parse(stored));
-  }, [router]);
+  }, []);
 
-  const copyAttestation = () => {
+  const copyQuote = () => {
     if (result?.attestation) {
       navigator.clipboard.writeText(result.attestation);
       setCopied(true);
@@ -28,81 +23,99 @@ export default function ResultPage() {
     }
   };
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white font-sans font-extralight tracking-tight">
+        <div className="text-[10px] font-mono uppercase tracking-[0.5em] animate-pulse">Retrieving_Data...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-white font-sans text-zinc-900">
-      <main className="flex w-full max-w-3xl flex-col px-6 py-24">
-        <Link 
-          href="/upload" 
-          className="mb-12 flex items-center gap-2 text-sm font-medium text-zinc-400 hover:text-zinc-600 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Upload
+    <div className="flex min-h-screen flex-col bg-white text-black font-sans font-extralight tracking-tight">
+      <nav className="p-8 flex justify-between items-start z-40">
+        <Link href="/upload" className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 hover:opacity-100 transition-opacity">
+          <ArrowLeft className="h-3 w-3" />
+          Back.Ingest
         </Link>
-
-        <div className="mb-12 flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 text-white">
-            <FileCheck className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-light tracking-tight">Inference Complete</h1>
-            <p className="text-zinc-500">Result generated inside TDX enclave.</p>
-          </div>
+        <div className="text-right">
+          <div className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-1">Session</div>
+          <div className="text-xs font-normal lowercase tracking-tighter">proof.generated</div>
         </div>
+      </nav>
 
-        <section className="mb-12 rounded-3xl border border-zinc-100 bg-zinc-50/50 p-8">
-          <h2 className="mb-4 text-xs font-medium uppercase tracking-widest text-zinc-400">Model Output</h2>
-          <div className="text-xl font-light leading-relaxed text-zinc-800">
-            {result.result}
-          </div>
-        </section>
-
-        <section className="rounded-3xl border border-zinc-200 p-8">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-zinc-900" />
-              <h2 className="font-medium">Hardware Attestation</h2>
+      <main className="flex-1 flex flex-col pt-24 pb-32 px-8 sm:px-16 lg:px-32">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-24 items-start">
+          <div>
+            <div className="flex items-center gap-3 text-[10px] font-mono text-green-600 uppercase tracking-[0.3em] mb-8">
+              <CheckCircle2 className="h-3 w-3" />
+              Inference Complete
             </div>
-            <Link 
-              href="/verify" 
-              className="flex items-center gap-1 text-xs font-semibold text-zinc-500 hover:text-zinc-800"
-            >
-              Open Verifier <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
+            
+            <h1 className="text-6xl font-thin leading-[1.1] mb-12">
+              Result <br />
+              <span className="italic font-light">Analysis</span>.
+            </h1>
 
-          <div className="mb-4 space-y-4">
-            <div>
-              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">Report Data Binding</p>
-              <code className="block rounded-lg bg-zinc-50 p-3 text-xs font-mono text-zinc-600 break-all border border-zinc-100">
-                {result.report_data || "N/A"}
-              </code>
+            <div className="p-12 border border-zinc-100 rounded-[40px] bg-white group hover:border-zinc-200 transition-colors duration-500">
+              <p className="text-2xl font-normal leading-relaxed tracking-tight text-zinc-800">
+                {result.result}
+              </p>
             </div>
 
-            <div>
-              <div className="mb-1 flex items-center justify-between">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">TDX Quote (Hex)</p>
+            <div className="mt-16 grid grid-cols-2 gap-8 border-t border-zinc-50 pt-16">
+              <Stat label="Model ID" value="Scoring.v1.0" />
+              <Stat label="Hardware" value="Intel TDX / CVM" />
+            </div>
+          </div>
+
+          <aside className="lg:sticky lg:top-32 space-y-12">
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest opacity-40">
+                  <Terminal className="h-3 w-3" />
+                  Remote Attestation
+                </div>
                 <button 
-                  onClick={copyAttestation}
-                  className="flex items-center gap-1 text-[10px] uppercase font-bold text-zinc-400 hover:text-zinc-600 transition-colors"
+                  onClick={copyQuote}
+                  className="text-[10px] font-mono uppercase tracking-widest hover:text-blue-600 transition-colors"
                 >
-                  {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? "Copied" : "Copy Source"}
                 </button>
               </div>
-              <div className="max-h-32 overflow-y-auto rounded-lg bg-zinc-50 p-3 text-[10px] font-mono text-zinc-400 break-all leading-relaxed border border-zinc-100">
-                {result.attestation || "Attestation not available in simulation mode."}
+              
+              <div className="bg-zinc-50/50 p-8 rounded-[30px] border border-zinc-100 relative overflow-hidden group">
+                <div className="font-mono text-[9px] leading-relaxed break-all opacity-40 max-h-[300px] overflow-y-auto pr-4 scrollbar-hide">
+                  {result.attestation}
+                </div>
+                <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-zinc-50/80 via-transparent to-transparent opacity-100"></div>
               </div>
             </div>
-          </div>
 
-          <p className="text-xs leading-relaxed text-zinc-400">
-            This quote cryptographically binds the model result to the specific Intel TDX hardware measurement.
-            You can verify this payload in the verifier portal or using the off-chain CLI.
-          </p>
-        </section>
+            <div className="p-8 border-l border-zinc-100 flex flex-col gap-6">
+              <p className="text-xs text-zinc-400 leading-relaxed font-extralight">
+                This TDX Quote binds the inference result to the hardware state (RTMR) and the immutable compose-hash.
+              </p>
+              <Link
+                href="/verify"
+                className="inline-flex items-center gap-6 group hover:gap-10 transition-all duration-500"
+              >
+                <div className="h-px w-8 bg-black group-hover:w-16 transition-all duration-500"></div>
+                <span className="text-[10px] font-mono uppercase tracking-[0.4em]">Initialize Verification</span>
+              </Link>
+            </div>
+          </aside>
+        </div>
       </main>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string, value: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="text-[9px] font-mono uppercase tracking-[0.3em] opacity-30">{label}</div>
+      <div className="text-sm font-normal tracking-tight uppercase">{value}</div>
     </div>
   );
 }

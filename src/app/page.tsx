@@ -1,79 +1,102 @@
 import Link from "next/link";
-import { ShieldCheck, Upload, FileSearch, Shield } from "lucide-react";
+import { Shield, ArrowRight, CornerDownRight } from "lucide-react";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white font-sans text-zinc-900 selection:bg-zinc-100">
-      <div className="absolute inset-0 z-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
-      
-      <main className="relative z-10 flex w-full max-w-4xl flex-col items-center px-6 py-20 text-center">
-        <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-zinc-50 px-3 py-1 text-xs font-medium tracking-wider text-zinc-500 uppercase ring-1 ring-zinc-200">
-          <Shield className="h-3 w-3" />
-          TEE-Backed Private Inference
+    <div className="flex min-h-screen flex-col bg-white text-black font-sans font-extralight tracking-tight selection:bg-black selection:text-white">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 w-full p-8 flex justify-between items-start z-40 mix-blend-difference">
+        <div className="flex flex-col gap-1">
+          <div className="text-xs font-mono uppercase tracking-[0.3em] opacity-40">System.01</div>
+          <div className="text-xl font-normal lowercase tracking-tighter">props.dStack</div>
         </div>
-        
-        <h1 className="mb-6 text-5xl font-light tracking-tight sm:text-7xl">
-          Props <span className="font-medium">dStack</span>
-        </h1>
-        
-        <p className="mb-12 max-w-xl text-lg font-light leading-relaxed text-zinc-500 sm:text-xl">
-          Secure, hardware-rooted document processing. 
-          Upload sensitive files and get verifiable results without ever exposing your data.
-        </p>
+        <div className="flex gap-12 text-xs font-mono uppercase tracking-[0.2em] opacity-60">
+          <Link href="/verify" className="hover:opacity-100 transition-opacity">Verifier</Link>
+          <a href="https://phala.network" target="_blank" className="hover:opacity-100 transition-opacity">Network</a>
+        </div>
+      </nav>
 
-        <div className="flex flex-col gap-4 sm:flex-row">
-          <Link
-            href="/upload"
-            className="group flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-8 py-4 text-white transition-all hover:bg-zinc-800"
-          >
-            <Upload className="h-4 w-4 transition-transform group-hover:-translate-y-1" />
-            <span className="font-medium">Start Inference</span>
-          </Link>
-          <Link
-            href="/verify"
-            className="flex items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-8 py-4 transition-all hover:bg-zinc-50"
-          >
-            <ShieldCheck className="h-4 w-4 text-zinc-400" />
-            <span className="font-medium">Verifier Portal</span>
-          </Link>
+      <main className="flex-1 flex flex-col pt-48 pb-32 px-8 sm:px-16 lg:px-32 relative overflow-hidden">
+        {/* Decorative Grid / Lines */}
+        <div className="absolute top-0 right-0 w-px h-full bg-zinc-50 -z-10 translate-x-[-20vw]"></div>
+        <div className="absolute top-[40vh] left-0 w-full h-px bg-zinc-50 -z-10"></div>
+        
+        {/* Hero Section - Asymmetric */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,400px] gap-12 items-start">
+          <div className="max-w-xl">
+            <h1 className="text-6xl sm:text-8xl font-thin leading-[0.9] mb-12">
+              Private <br />
+              <span className="italic font-light">Inference</span> <br />
+              at Edge.
+            </h1>
+            <p className="text-xl sm:text-2xl text-zinc-400 font-extralight leading-relaxed max-w-md mb-16">
+              Hardware-rooted trust for sensitive data processing. Built on Intel TDX.
+            </p>
+            
+            <Link
+              href="/upload"
+              className="inline-flex items-center gap-6 group hover:gap-10 transition-all duration-500 ease-out"
+            >
+              <div className="h-px w-12 bg-black group-hover:w-24 transition-all duration-500"></div>
+              <span className="text-sm font-mono uppercase tracking-[0.4em]">Initialize Pipeline</span>
+              <ArrowRight className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-opacity" />
+            </Link>
+          </div>
+
+          <div className="mt-24 lg:mt-0 flex flex-col gap-16 border-l border-zinc-100 pl-8 lg:pl-16">
+            <Feature 
+              id="01"
+              title="Identity"
+              description="Cryptographic proof of model version and runtime integrity."
+            />
+            <Feature 
+              id="02"
+              title="Isolation"
+              description="Data is decrypted only inside the hardware enclave."
+            />
+            <Feature 
+              id="03"
+              title="Verification"
+              description="Independent dStack compose-hash matching."
+            />
+          </div>
         </div>
 
-        <div className="mt-24 grid w-full grid-cols-1 gap-12 text-left sm:grid-cols-3">
-          <Feature 
-            icon={<ShieldCheck className="h-6 w-6 text-zinc-900" />}
-            title="Privacy First"
-            description="Your documents are decrypted and processed only inside an Intel TDX enclave."
-          />
-          <Feature 
-            icon={<FileSearch className="h-6 w-6 text-zinc-900" />}
-            title="Verifiable Logic"
-            description="Every result comes with a cryptographic proof of the exact model version and execution environment."
-          />
-          <Feature 
-            icon={<Shield className="h-6 w-6 text-zinc-900" />}
-            title="No Third Party"
-            description="Verify the compose-hash yourself to ensure the infrastructure hasn't been tampered with."
-          />
+        {/* Bottom Accent */}
+        <div className="mt-auto pt-32 flex flex-col sm:flex-row justify-between items-end gap-12">
+          <div className="text-[10vw] font-black opacity-[0.02] select-none translate-x-[-2vw]">
+            INTEL.TDX
+          </div>
+          <div className="max-w-xs text-[10px] font-mono leading-relaxed opacity-30 uppercase tracking-widest text-right">
+            Confidential Computing <br />
+            Remote Attestation Enabled <br />
+            Phala Cloud Node v4.2
+          </div>
         </div>
       </main>
 
-      <footer className="relative z-10 mt-auto py-10 text-xs font-light tracking-widest text-zinc-400 uppercase">
-        Built on Phala Cloud & dStack
+      <footer className="p-8 border-t border-zinc-50 flex justify-between items-center text-[10px] font-mono uppercase tracking-[0.3em] opacity-40">
+        <div>&copy; 2026 Props.Network</div>
+        <div className="flex gap-8">
+          <span>Security</span>
+          <span>Docs</span>
+        </div>
       </footer>
     </div>
   );
 }
 
-function Feature({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+function Feature({ id, title, description }: { id: string, title: string, description: string }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-50 ring-1 ring-zinc-100">
-        {icon}
+    <div className="flex flex-col gap-4 max-w-[240px]">
+      <div className="text-[10px] font-mono opacity-30 flex items-center gap-2">
+        <CornerDownRight className="h-3 w-3" />
+        {id}
       </div>
-      <div>
-        <h3 className="mb-2 font-medium text-zinc-900">{title}</h3>
-        <p className="text-sm leading-relaxed text-zinc-500">{description}</p>
-      </div>
+      <h3 className="text-sm font-normal uppercase tracking-widest">{title}</h3>
+      <p className="text-xs leading-relaxed text-zinc-400 font-extralight tracking-normal">
+        {description}
+      </p>
     </div>
   );
 }
