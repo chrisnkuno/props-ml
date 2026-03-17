@@ -49,7 +49,7 @@ export default function VerifyPage() {
               <VerificationStep 
                 icon={<Cpu className="h-3 w-3" />}
                 title="Hardware" 
-                desc="Intel Rooted Trust" 
+                desc="Intel TDX / NVIDIA H100" 
               />
               <VerificationStep 
                 icon={<Box className="h-3 w-3" />}
@@ -58,8 +58,13 @@ export default function VerifyPage() {
               />
               <VerificationStep 
                 icon={<Hash className="h-3 w-3" />}
-                title="Code" 
-                desc="Compose-Hash Match" 
+                title="Provenance" 
+                desc="Source-Auth Match" 
+              />
+              <VerificationStep 
+                icon={<Terminal className="h-3 w-3" />}
+                title="Policy" 
+                desc="Deterministic Redaction" 
               />
             </div>
           </header>
@@ -69,7 +74,7 @@ export default function VerifyPage() {
               <textarea
                 value={quote}
                 onChange={(e) => setQuote(e.target.value)}
-                placeholder="Paste TDX Remote Attestation Quote..."
+                placeholder="Paste Verifiable Proof Output (Hex)..."
                 className="w-full h-64 bg-zinc-50/50 rounded-[40px] border border-zinc-100 p-12 font-mono text-[10px] leading-relaxed text-black placeholder:text-zinc-300 focus:outline-none focus:border-zinc-200 transition-all duration-700 resize-none scrollbar-hide"
               />
               <div className="absolute bottom-12 right-12 flex gap-4">
@@ -79,7 +84,7 @@ export default function VerifyPage() {
                   className="flex items-center gap-8 group hover:gap-12 transition-all duration-500 disabled:opacity-20"
                 >
                   <span className="text-[10px] font-mono uppercase tracking-[0.5em]">
-                    {verifying ? "Executing_Validation..." : "Verify_Integrity"}
+                    {verifying ? "Validating_Pipeline..." : "Verify_Full_Stack"}
                   </span>
                   {verifying ? <Loader2 className="h-4 w-4 animate-spin opacity-40" /> : <div className="h-2 w-2 rounded-full bg-black"></div>}
                 </button>
@@ -91,16 +96,15 @@ export default function VerifyPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 text-[10px] font-mono text-green-600 uppercase tracking-[0.4em] mb-6">
                     <CheckCircle2 className="h-3 w-3" />
-                    Validation Successful
+                    Full Chain Valid
                   </div>
                   <p className="text-lg font-normal tracking-tighter leading-relaxed">
-                    The provided quote matches a genuine Intel TDX hardware measurement. 
-                    The `compose-hash` confirms the exact Docker configuration from [app-compose.json].
+                    The provided quote validates the entire pipeline: <span className="font-mono text-xs opacity-40">source-authenticity</span>, <span className="font-mono text-xs opacity-40">redaction-policy</span>, and <span className="font-mono text-xs opacity-40">model-integrity</span>.
                   </p>
                 </div>
                 <div className="grid grid-cols-1 gap-6 text-right">
-                  <div className="text-[10px] font-mono opacity-20 uppercase tracking-[0.3em]">Signature</div>
-                  <div className="text-[10px] font-mono lowercase opacity-60">verified_rsa_3072</div>
+                  <div className="text-[10px] font-mono opacity-20 uppercase tracking-[0.3em]">Protocol</div>
+                  <div className="text-[10px] font-mono lowercase opacity-60">props.v2.attest</div>
                 </div>
               </div>
             )}

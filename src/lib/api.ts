@@ -4,6 +4,9 @@ export interface InferenceResult {
   result: string;
   attestation: string | null;
   report_data: string | null;
+  source_identity: string;
+  policy_id: string;
+  contribution_receipt: string;
 }
 
 export async function uploadDocument(file: File): Promise<InferenceResult> {

@@ -39,33 +39,35 @@ export default function ResultPage() {
           Back.Ingest
         </Link>
         <div className="text-right">
-          <div className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-1">Session</div>
-          <div className="text-xs font-normal lowercase tracking-tighter">proof.generated</div>
+          <div className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-1">Receipt</div>
+          <div className="text-xs font-mono lowercase tracking-tighter text-blue-600 font-normal">{result.contribution_receipt}</div>
         </div>
       </nav>
 
       <main className="flex-1 flex flex-col pt-24 pb-32 px-8 sm:px-16 lg:px-32">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr,500px] gap-24 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,400px] gap-24 items-start">
           <div>
             <div className="flex items-center gap-3 text-[10px] font-mono text-green-600 uppercase tracking-[0.3em] mb-8">
               <CheckCircle2 className="h-3 w-3" />
-              Inference Complete
+              Verifiable Pipeline Complete
             </div>
             
             <h1 className="text-6xl font-thin leading-[1.1] mb-12">
-              Result <br />
-              <span className="italic font-light">Analysis</span>.
+              Pipeline <br />
+              <span className="italic font-light">Outcome</span>.
             </h1>
 
-            <div className="p-12 border border-zinc-100 rounded-[40px] bg-white group hover:border-zinc-200 transition-colors duration-500">
+            <div className="p-12 border border-zinc-100 rounded-[40px] bg-white group hover:border-zinc-200 transition-colors duration-500 mb-16">
               <p className="text-2xl font-normal leading-relaxed tracking-tight text-zinc-800">
                 {result.result}
               </p>
             </div>
 
-            <div className="mt-16 grid grid-cols-2 gap-8 border-t border-zinc-50 pt-16">
-              <Stat label="Model ID" value="Scoring.v1.0" />
-              <Stat label="Hardware" value="Intel TDX / CVM" />
+            <div className="grid grid-cols-2 gap-12 border-t border-zinc-50 pt-16">
+              <Stat label="Source Identity" value={result.source_identity} />
+              <Stat label="Release Policy" value={result.policy_id} />
+              <Stat label="Model ID" value="Scoring.v2.PROPS" />
+              <Stat label="Compute Hardware" value="Intel TDX / CVM" />
             </div>
           </div>
 
@@ -74,13 +76,13 @@ export default function ResultPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest opacity-40">
                   <Terminal className="h-3 w-3" />
-                  Remote Attestation
+                  Full Attestation Quote
                 </div>
                 <button 
                   onClick={copyQuote}
                   className="text-[10px] font-mono uppercase tracking-widest hover:text-blue-600 transition-colors"
                 >
-                  {copied ? "Copied" : "Copy Source"}
+                  {copied ? "Copied" : "Copy Hex"}
                 </button>
               </div>
               
@@ -93,15 +95,16 @@ export default function ResultPage() {
             </div>
 
             <div className="p-8 border-l border-zinc-100 flex flex-col gap-6">
-              <p className="text-xs text-zinc-400 leading-relaxed font-extralight">
-                This TDX Quote binds the inference result to the hardware state (RTMR) and the immutable compose-hash.
+              <p className="text-xs text-zinc-400 leading-relaxed font-extralight uppercase tracking-widest">
+                Verification Binding: <br />
+                <span className="font-mono text-[9px] lowercase opacity-60">policy + source + model + result</span>
               </p>
               <Link
                 href="/verify"
                 className="inline-flex items-center gap-6 group hover:gap-10 transition-all duration-500"
               >
                 <div className="h-px w-8 bg-black group-hover:w-16 transition-all duration-500"></div>
-                <span className="text-[10px] font-mono uppercase tracking-[0.4em]">Initialize Verification</span>
+                <span className="text-[10px] font-mono uppercase tracking-[0.4em]">Execute Proof Chain</span>
               </Link>
             </div>
           </aside>
