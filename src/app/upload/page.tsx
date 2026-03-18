@@ -1,20 +1,60 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, File, Loader2, AlertCircle, ArrowLeft, CornerDownRight } from "lucide-react";
-import { uploadDocument } from "@/lib/api";
+import { Upload, File, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { getInfo, uploadDocument, type AppInfo } from "@/lib/api";
 import Link from "next/link";
+
+const SUPPORTED_EXTENSIONS = [".pdf", ".json", ".txt"];
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getInfo()
+      .then((info) => {
+        if (!cancelled) {
+          setAppInfo(info);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAppInfo(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const nextFile = e.target.files[0];
+      const lowerName = nextFile.name.toLowerCase();
+      const supported = SUPPORTED_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
+
+      if (!supported) {
+        setFile(null);
+        setError(`Unsupported file type. Use ${SUPPORTED_EXTENSIONS.join(", ")}.`);
+        return;
+      }
+
+      if (nextFile.size > MAX_FILE_SIZE_BYTES) {
+        setFile(null);
+        setError("File exceeds the 10 MB client-side upload limit.");
+        return;
+      }
+
+      setFile(nextFile);
       setError(null);
     }
   };
@@ -29,8 +69,8 @@ export default function UploadPage() {
       const result = await uploadDocument(file);
       sessionStorage.setItem("inference_result", JSON.stringify(result));
       router.push("/result");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setLoading(false);
     }
@@ -45,7 +85,9 @@ export default function UploadPage() {
         </Link>
         <div className="text-right">
           <div className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-1">Status</div>
-          <div className="text-xs font-normal lowercase tracking-tighter">enclave.active</div>
+          <div className="text-xs font-normal lowercase tracking-tighter">
+            {appInfo ? (appInfo.tee_enabled ? "attestation.available" : "local.mode") : "backend.unknown"}
+          </div>
         </div>
       </nav>
 
@@ -57,14 +99,14 @@ export default function UploadPage() {
               Ingestion.
             </h1>
             <p className="text-sm text-zinc-400 font-extralight leading-relaxed mb-12">
-              Submit your sensitive documents for TEE-isolated processing. 
-              We support PDF, JSON, and raw text formats.
+              Submit documents to the configured backend for parsing and scoring. Attestation is returned only when
+              the API is running with dStack-backed TEE support.
             </p>
             
             <div className="space-y-4 pt-8 border-t border-zinc-50">
-              <Requirement item="No data persistence outside TEE" />
-              <Requirement item="Automatic cryptographic binding" />
-              <Requirement item="Intel TDX protected memory" />
+              <Requirement item="Client-side type and size checks before upload" />
+              <Requirement item="Backend response includes quote and report data when available" />
+              <Requirement item={appInfo?.tee_enabled ? "TEE mode reported by backend" : "Backend may be running without TEE"} />
             </div>
           </header>
 
@@ -99,7 +141,8 @@ export default function UploadPage() {
                     </div>
                     <p className="text-sm font-normal mb-1 self-start tracking-wider uppercase opacity-40">Drag document</p>
                     <p className="text-xs text-zinc-400 font-extralight leading-relaxed text-left">
-                      Your data is encrypted locally and transferred directly to the dStack enclave via a secure transport layer.
+                      Files are posted to the backend API over the browser connection. Verification happens after the
+                      backend returns its evidence.
                     </p>
                   </>
                 )}
@@ -130,7 +173,7 @@ export default function UploadPage() {
 
       <footer className="p-8 flex justify-end">
         <div className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-20">
-          TDX.TEE / SHA-256 Enabled
+          API.UPLOAD / EVIDENCE.READY
         </div>
       </footer>
     </div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Shield, ArrowRight, CornerDownRight } from "lucide-react";
+import { ArrowRight, CornerDownRight } from "lucide-react";
 
 export default function Home() {
   return (
@@ -30,7 +30,7 @@ export default function Home() {
               at Edge.
             </h1>
             <p className="text-xl sm:text-2xl text-zinc-400 font-extralight leading-relaxed max-w-md mb-16">
-              Hardware-rooted trust for sensitive data processing. Built on Intel TDX.
+              Document processing with attestation support when the backend is running inside dStack on TDX.
             </p>
             
             <Link
@@ -47,17 +47,17 @@ export default function Home() {
             <Feature 
               id="01"
               title="Identity"
-              description="Cryptographic proof of model version and runtime integrity."
+              description="Expose quote and report data so the runtime can be checked independently."
             />
             <Feature 
               id="02"
               title="Isolation"
-              description="Data is decrypted only inside the hardware enclave."
+              description="The backend can run inside a confidential VM, but local mode is supported too."
             />
             <Feature 
               id="03"
               title="Verification"
-              description="Independent dStack compose-hash matching."
+              description="Verifier flow checks backend evidence instead of simulating a green result."
             />
           </div>
         </div>
@@ -68,9 +68,9 @@ export default function Home() {
             INTEL.TDX
           </div>
           <div className="max-w-xs text-[10px] font-mono leading-relaxed opacity-30 uppercase tracking-widest text-right">
-            Confidential Computing <br />
-            Remote Attestation Enabled <br />
-            Phala Cloud Node v4.2
+            Configured For dStack <br />
+            Quote Verification Surface <br />
+            Frontend + API Split
           </div>
         </div>
       </main>

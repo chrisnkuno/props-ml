@@ -1,10 +1,5 @@
 @import "tailwindcss";
 
-@font-face {
-  font-family: 'Inter';
-  src: url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600&display=swap');
-}
-
 :root {
   --background: #ffffff;
   --foreground: #000000;
@@ -15,8 +10,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: 'Inter', var(--font-geist-sans), sans-serif;
-  --font-mono: var(--font-geist-mono), monospace;
+  --font-sans: "Helvetica Neue", "Arial Nova", "Nimbus Sans", Arial, sans-serif;
+  --font-mono: "SFMono-Regular", "JetBrains Mono", "Menlo", "Consolas", monospace;
 }
 
 body {

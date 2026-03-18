@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface InferenceResult {
   result: string;
@@ -7,26 +7,101 @@ export interface InferenceResult {
   source_identity: string;
   policy_id: string;
   contribution_receipt: string;
+  model_version: string;
+  processing_mode: string;
+  verification_bundle: VerificationBundle;
+}
+
+export interface VerificationBundle {
+  model_version: string;
+  processing_mode: string;
+  file_hash: string;
+  result_hash: string;
+  compose_hash: string;
+  compose_images_pinned: boolean;
+}
+
+export interface AppInfo {
+  app: string;
+  version: string;
+  tee_enabled: boolean;
+  dstack_socket: string;
+  compose_hash: string;
+  compose_images_pinned: boolean;
+}
+
+export interface VerifyPayload {
+  quote?: string | null;
+  report_data: string;
+  policy_id: string;
+  model_version: string;
+  source_identity: string;
+  file_hash: string;
+  result_hash: string;
+}
+
+export interface VerifyResponse {
+  status: "verified" | "partial" | "failed";
+  expected_report_data: string;
+  warnings: string[];
+  checks: {
+    report_data_matches_binding: boolean;
+    report_data_format_valid: boolean;
+    quote_provided: boolean;
+    quote_format_valid: boolean;
+    hardware_quote_verified: boolean | null;
+    compose_images_pinned: boolean;
+    compose_hash: string;
+  };
+  source_manifest: string;
+}
+
+async function readResponse(response: Response) {
+  const contentType = response.headers.get("content-type") || "";
+
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+
+  const text = await response.text();
+  return text ? { detail: text } : null;
+}
+
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, init);
+  const body = await readResponse(response);
+
+  if (!response.ok) {
+    const detail =
+      typeof body === "object" && body !== null && "detail" in body
+        ? String(body.detail)
+        : `Request failed with status ${response.status}`;
+    throw new Error(detail);
+  }
+
+  return body as T;
 }
 
 export async function uploadDocument(file: File): Promise<InferenceResult> {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
 
-  const response = await fetch(`${API_URL}/upload`, {
-    method: 'POST',
+  return requestJson<InferenceResult>("/upload", {
+    method: "POST",
     body: formData,
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to upload document');
-  }
-
-  return response.json();
 }
 
-export async function getInfo() {
-  const response = await fetch(`${API_URL}/info`);
-  return response.json();
+export async function getInfo(): Promise<AppInfo> {
+  return requestJson<AppInfo>("/info");
+}
+
+export async function verifyAttestation(payload: VerifyPayload): Promise<VerifyResponse> {
+  return requestJson<VerifyResponse>("/verify", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 }

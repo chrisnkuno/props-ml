@@ -1,19 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Copy, ArrowLeft, Terminal, CornerDownRight } from "lucide-react";
+import { CheckCircle2, ArrowLeft, Terminal } from "lucide-react";
+import type { InferenceResult } from "@/lib/api";
+
+function readStoredResult(): InferenceResult | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const data = window.sessionStorage.getItem("inference_result");
+    return data ? (JSON.parse(data) as InferenceResult) : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function ResultPage() {
-  const [result, setResult] = useState<any>(null);
+  const [result] = useState<InferenceResult | null>(() => readStoredResult());
   const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    const data = sessionStorage.getItem("inference_result");
-    if (data) {
-      setResult(JSON.parse(data));
+  const proofStatus = useMemo(() => {
+    if (!result?.attestation) {
+      return "Result available, attestation unavailable";
     }
-  }, []);
+
+    return result.report_data ? "Quote and report data captured" : "Quote captured";
+  }, [result]);
 
   const copyQuote = () => {
     if (result?.attestation) {
@@ -25,8 +39,19 @@ export default function ResultPage() {
 
   if (!result) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white font-sans font-extralight tracking-tight">
-        <div className="text-[10px] font-mono uppercase tracking-[0.5em] animate-pulse">Retrieving_Data...</div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-8 bg-white px-8 text-center font-sans font-extralight tracking-tight">
+        <div className="text-[10px] font-mono uppercase tracking-[0.5em] opacity-40">No.Stored.Result</div>
+        <p className="max-w-sm text-sm leading-relaxed text-zinc-500">
+          Upload a document first or paste an existing quote into the verifier.
+        </p>
+        <div className="flex gap-6 text-[10px] font-mono uppercase tracking-[0.4em]">
+          <Link href="/upload" className="hover:opacity-100 opacity-50 transition-opacity">
+            Start Upload
+          </Link>
+          <Link href="/verify" className="hover:opacity-100 opacity-50 transition-opacity">
+            Open Verifier
+          </Link>
+        </div>
       </div>
     );
   }
@@ -49,7 +74,7 @@ export default function ResultPage() {
           <div>
             <div className="flex items-center gap-3 text-[10px] font-mono text-green-600 uppercase tracking-[0.3em] mb-8">
               <CheckCircle2 className="h-3 w-3" />
-              Verifiable Pipeline Complete
+              {proofStatus}
             </div>
             
             <h1 className="text-6xl font-thin leading-[1.1] mb-12">
@@ -66,8 +91,8 @@ export default function ResultPage() {
             <div className="grid grid-cols-2 gap-12 border-t border-zinc-50 pt-16">
               <Stat label="Source Identity" value={result.source_identity} />
               <Stat label="Release Policy" value={result.policy_id} />
-              <Stat label="Model ID" value="Scoring.v2.PROPS" />
-              <Stat label="Compute Hardware" value="Intel TDX / CVM" />
+              <Stat label="Model ID" value={result.model_version} />
+              <Stat label="Compute Mode" value={result.processing_mode} />
             </div>
           </div>
 
@@ -80,15 +105,16 @@ export default function ResultPage() {
                 </div>
                 <button 
                   onClick={copyQuote}
+                  disabled={!result.attestation}
                   className="text-[10px] font-mono uppercase tracking-widest hover:text-blue-600 transition-colors"
                 >
-                  {copied ? "Copied" : "Copy Hex"}
+                  {copied ? "Copied" : result.attestation ? "Copy Hex" : "No Quote"}
                 </button>
               </div>
               
               <div className="bg-zinc-50/50 p-8 rounded-[30px] border border-zinc-100 relative overflow-hidden group">
                 <div className="font-mono text-[9px] leading-relaxed break-all opacity-40 max-h-[300px] overflow-y-auto pr-4 scrollbar-hide">
-                  {result.attestation}
+                  {result.attestation ?? "This run did not return an attestation quote."}
                 </div>
                 <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-zinc-50/80 via-transparent to-transparent opacity-100"></div>
               </div>
@@ -97,7 +123,9 @@ export default function ResultPage() {
             <div className="p-8 border-l border-zinc-100 flex flex-col gap-6">
               <p className="text-xs text-zinc-400 leading-relaxed font-extralight uppercase tracking-widest">
                 Verification Binding: <br />
-                <span className="font-mono text-[9px] lowercase opacity-60">policy + source + model + result</span>
+                <span className="font-mono text-[9px] lowercase opacity-60">
+                  {result.report_data ?? "report data not returned"}
+                </span>
               </p>
               <Link
                 href="/verify"
