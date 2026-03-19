@@ -1,16 +1,16 @@
-# Use pinned Node.js digest
-FROM node@sha256:0d99dc09477b8da5a33116df083b0544f8365c1926615d6c8e3e40be2ec03b9b as builder
+# Temporary tag-based bases until current digests are re-pinned after successful builds.
+FROM node:22-bookworm AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY . .
 RUN npm run build
 
 # Production image
-FROM node@sha256:0d99dc09477b8da5a33116df083b0544f8365c1926615d6c8e3e40be2ec03b9b-slim
+FROM node:22-bookworm-slim
 
 WORKDIR /app
 
