@@ -21,7 +21,11 @@ function readStoredResult(): InferenceResult | null {
 export default function ResultPage() {
   const [result] = useState<InferenceResult | null>(() => readStoredResult());
   const [copied, setCopied] = useState(false);
+  const [bundleDownloaded, setBundleDownloaded] = useState(false);
   const proofStatus = useMemo(() => {
+    if (result?.verification_bundle.signature) {
+      return "Signed evidence bundle ready";
+    }
     if (!result?.attestation) {
       return "Result available, attestation unavailable";
     }
@@ -35,6 +39,36 @@ export default function ResultPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const downloadEvidenceBundle = () => {
+    if (!result) {
+      return;
+    }
+
+    const bundle = {
+      quote: result.attestation,
+      report_data: result.report_data,
+      policy_id: result.policy_id,
+      model_version: result.model_version,
+      source_identity: result.source_identity,
+      file_hash: result.verification_bundle.file_hash,
+      result_hash: result.verification_bundle.result_hash,
+      compose_hash: result.verification_bundle.compose_hash,
+      compose_images_pinned: result.verification_bundle.compose_images_pinned,
+      signature: result.verification_bundle.signature,
+    };
+    const blob = new Blob([JSON.stringify(bundle, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "props-evidence-bundle.json";
+    link.click();
+    URL.revokeObjectURL(url);
+    setBundleDownloaded(true);
+    setTimeout(() => setBundleDownloaded(false), 2000);
   };
 
   if (!result) {
@@ -127,6 +161,12 @@ export default function ResultPage() {
                   {result.report_data ?? "report data not returned"}
                 </span>
               </p>
+              <button
+                onClick={downloadEvidenceBundle}
+                className="text-left text-[10px] font-mono uppercase tracking-[0.4em] opacity-60 transition-opacity hover:opacity-100"
+              >
+                {bundleDownloaded ? "Bundle_Exported" : "Export_Evidence_Bundle"}
+              </button>
               <Link
                 href="/verify"
                 className="inline-flex items-center gap-6 group hover:gap-10 transition-all duration-500"

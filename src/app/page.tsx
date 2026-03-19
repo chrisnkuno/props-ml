@@ -12,7 +12,14 @@ export default function Home() {
         </div>
         <div className="flex gap-12 text-xs font-mono uppercase tracking-[0.2em] opacity-60">
           <Link href="/verify" className="hover:opacity-100 transition-opacity">Verifier</Link>
-          <a href="https://phala.network" target="_blank" className="hover:opacity-100 transition-opacity">Network</a>
+          <a
+            href="https://phala.network"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:opacity-100 transition-opacity"
+          >
+            Network
+          </a>
         </div>
       </nav>
 

@@ -2,8 +2,28 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Loader2, CheckCircle2, ArrowLeft, Cpu, Box, Hash, Terminal, AlertCircle } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  Cpu,
+  Box,
+  Hash,
+  Loader2,
+  Terminal,
+} from "lucide-react";
 import { verifyAttestation, type InferenceResult, type VerifyResponse } from "@/lib/api";
+
+interface EvidenceBundleInput {
+  quote?: string | null;
+  report_data?: string | null;
+  policy_id?: string;
+  model_version?: string;
+  source_identity?: string;
+  file_hash?: string;
+  result_hash?: string;
+  signature?: string | null;
+}
 
 function readStoredResult(): InferenceResult | null {
   if (typeof window === "undefined") {
@@ -18,37 +38,86 @@ function readStoredResult(): InferenceResult | null {
   }
 }
 
+function bundleFromResult(result: InferenceResult): EvidenceBundleInput {
+  return {
+    quote: result.attestation,
+    report_data: result.report_data,
+    policy_id: result.policy_id,
+    model_version: result.model_version,
+    source_identity: result.source_identity,
+    file_hash: result.verification_bundle.file_hash,
+    result_hash: result.verification_bundle.result_hash,
+    signature: result.verification_bundle.signature,
+  };
+}
+
 export default function VerifyPage() {
-  const [storedResult] = useState<InferenceResult | null>(() => readStoredResult());
-  const [quote, setQuote] = useState(() => readStoredResult()?.attestation ?? "");
-  const [reportData, setReportData] = useState(() => readStoredResult()?.report_data ?? "");
+  const initialResult = readStoredResult();
+  const initialBundle = initialResult ? bundleFromResult(initialResult) : null;
+  const [evidenceBundle, setEvidenceBundle] = useState<EvidenceBundleInput | null>(initialBundle);
+  const [bundleText, setBundleText] = useState(
+    initialBundle ? JSON.stringify(initialBundle, null, 2) : "",
+  );
+  const [quote, setQuote] = useState(initialBundle?.quote ?? "");
+  const [reportData, setReportData] = useState(initialBundle?.report_data ?? "");
   const [verifying, setVerifying] = useState(false);
-  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "verified" | "partial" | "error">("idle");
   const [verification, setVerification] = useState<VerifyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
   const canVerify = Boolean(
-    quote.trim() &&
-      reportData.trim() &&
-      storedResult?.policy_id &&
-      storedResult?.model_version &&
-      storedResult?.source_identity &&
-      storedResult?.verification_bundle.file_hash &&
-      storedResult?.verification_bundle.result_hash,
+    reportData.trim() &&
+      evidenceBundle?.policy_id &&
+      evidenceBundle?.model_version &&
+      evidenceBundle?.source_identity &&
+      evidenceBundle?.file_hash &&
+      evidenceBundle?.result_hash,
   );
-  const resultStateLabel = useMemo(() => {
-    if (!storedResult) {
+
+  const bundleStateLabel = useMemo(() => {
+    if (!evidenceBundle) {
       return "bundle.missing";
     }
-    if (storedResult.processing_mode === "tee-attested") {
-      return "bundle.ready";
+    if (evidenceBundle.signature) {
+      return "bundle.signed";
     }
-    return "bundle.partial";
-  }, [storedResult]);
+    return "bundle.loaded";
+  }, [evidenceBundle]);
+
+  const applyBundle = (bundle: EvidenceBundleInput) => {
+    setEvidenceBundle(bundle);
+    setQuote(bundle.quote ?? "");
+    setReportData(bundle.report_data ?? "");
+    setBundleText(JSON.stringify(bundle, null, 2));
+  };
+
+  const importBundle = () => {
+    try {
+      const parsed = JSON.parse(bundleText) as EvidenceBundleInput;
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        !parsed.policy_id ||
+        !parsed.model_version ||
+        !parsed.source_identity ||
+        !parsed.file_hash ||
+        !parsed.result_hash
+      ) {
+        throw new Error("Evidence bundle is missing one or more required fields.");
+      }
+
+      applyBundle(parsed);
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to parse evidence bundle.");
+      setStatus("error");
+    }
+  };
 
   const handleVerify = async () => {
-    if (!storedResult || !canVerify) {
+    if (!evidenceBundle || !canVerify) {
       setStatus("error");
-      setError("Verification requires a stored upload result with report data and binding fields.");
+      setError("Verification requires an uploaded or imported evidence bundle.");
       return;
     }
 
@@ -61,17 +130,22 @@ export default function VerifyPage() {
       const result = await verifyAttestation({
         quote: quote.trim() || undefined,
         report_data: reportData.trim(),
-        policy_id: storedResult.policy_id,
-        model_version: storedResult.model_version,
-        source_identity: storedResult.source_identity,
-        file_hash: storedResult.verification_bundle.file_hash,
-        result_hash: storedResult.verification_bundle.result_hash,
+        policy_id: evidenceBundle.policy_id ?? "",
+        model_version: evidenceBundle.model_version ?? "",
+        source_identity: evidenceBundle.source_identity ?? "",
+        file_hash: evidenceBundle.file_hash ?? "",
+        result_hash: evidenceBundle.result_hash ?? "",
+        signature: evidenceBundle.signature ?? undefined,
       });
 
       setVerification(result);
-      setStatus(result.status === "failed" ? "error" : "success");
-      if (result.status === "failed") {
-        setError("Verification failed.");
+      if (result.status === "verified") {
+        setStatus("verified");
+      } else if (result.status === "partial") {
+        setStatus("partial");
+      } else {
+        setStatus("error");
+        setError(result.reason ?? "Verification failed.");
       }
     } catch (err: unknown) {
       setStatus("error");
@@ -84,13 +158,16 @@ export default function VerifyPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white text-black font-sans font-extralight tracking-tight">
       <nav className="p-8 flex justify-between items-start z-40">
-        <Link href="/" className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 hover:opacity-100 transition-opacity">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 hover:opacity-100 transition-opacity"
+        >
           <ArrowLeft className="h-3 w-3" />
           Back.Index
         </Link>
         <div className="text-right">
           <div className="text-[10px] font-mono uppercase tracking-[0.3em] opacity-40 mb-1">Module</div>
-          <div className="text-xs font-normal lowercase tracking-tighter">{resultStateLabel}</div>
+          <div className="text-xs font-normal lowercase tracking-tighter">{bundleStateLabel}</div>
         </div>
       </nav>
 
@@ -102,40 +179,58 @@ export default function VerifyPage() {
               Portal.
             </h1>
             <p className="text-sm text-zinc-400 font-extralight leading-relaxed mb-12">
-              Submit the backend quote and optional report data to the API verifier. This view reports the backend
-              checks instead of inventing a success state.
+              Verify an exported evidence bundle from the result page. This reports bundle integrity and attestation
+              consistency; it does not claim genuine hardware verification inside this app.
             </p>
-            
+
             <div className="space-y-6 pt-8 border-t border-zinc-50">
-              <VerificationStep 
+              <VerificationStep
                 icon={<Cpu className="h-3 w-3" />}
-                title="Hardware" 
-                desc={storedResult?.processing_mode === "tee-attested" ? "Quote captured from backend" : "Hardware proof may be absent"} 
+                title="Hardware"
+                desc="Quote format only unless official verifier is wired in"
               />
-              <VerificationStep 
+              <VerificationStep
                 icon={<Box className="h-3 w-3" />}
-                title="Isolation" 
-                desc="Backend attestation metadata" 
+                title="Integrity"
+                desc="Optional HMAC evidence signature"
               />
-              <VerificationStep 
+              <VerificationStep
                 icon={<Hash className="h-3 w-3" />}
-                title="Provenance" 
-                desc="Report-data binding check" 
+                title="Binding"
+                desc="Report-data recomputation from bundle fields"
               />
-              <VerificationStep 
+              <VerificationStep
                 icon={<Terminal className="h-3 w-3" />}
-                title="Policy" 
-                desc="Compose metadata from backend verifier" 
+                title="Policy"
+                desc="Server-side manifest pinning checks"
               />
             </div>
           </header>
 
           <div className="flex flex-col gap-12">
+            <div className="rounded-[40px] border border-zinc-100 bg-white p-10">
+              <div className="mb-4 text-[10px] font-mono uppercase tracking-[0.4em] opacity-40">
+                Evidence Bundle JSON
+              </div>
+              <textarea
+                value={bundleText}
+                onChange={(e) => setBundleText(e.target.value)}
+                placeholder="Paste an exported evidence bundle JSON..."
+                className="h-52 w-full resize-none border-none bg-transparent font-mono text-[10px] leading-relaxed text-black placeholder:text-zinc-300 focus:outline-none"
+              />
+              <button
+                onClick={importBundle}
+                className="mt-6 text-[10px] font-mono uppercase tracking-[0.4em] opacity-60 transition-opacity hover:opacity-100"
+              >
+                Import_Evidence_Bundle
+              </button>
+            </div>
+
             <div className="relative group">
               <textarea
                 value={quote}
                 onChange={(e) => setQuote(e.target.value)}
-                placeholder="Paste attestation quote (hex)..."
+                placeholder="Paste attestation quote hex if available..."
                 className="w-full h-64 bg-zinc-50/50 rounded-[40px] border border-zinc-100 p-12 pb-28 font-mono text-[10px] leading-relaxed text-black placeholder:text-zinc-300 focus:outline-none focus:border-zinc-200 transition-all duration-700 resize-none scrollbar-hide"
               />
               <div className="absolute bottom-12 right-12 flex gap-4">
@@ -145,19 +240,23 @@ export default function VerifyPage() {
                   className="flex items-center gap-8 group hover:gap-12 transition-all duration-500 disabled:opacity-20"
                 >
                   <span className="text-[10px] font-mono uppercase tracking-[0.5em]">
-                    {verifying ? "Verifying_Evidence..." : "Verify_Backend_Evidence"}
+                    {verifying ? "Verifying_Evidence..." : "Verify_Evidence_Bundle"}
                   </span>
-                  {verifying ? <Loader2 className="h-4 w-4 animate-spin opacity-40" /> : <div className="h-2 w-2 rounded-full bg-black"></div>}
+                  {verifying ? (
+                    <Loader2 className="h-4 w-4 animate-spin opacity-40" />
+                  ) : (
+                    <div className="h-2 w-2 rounded-full bg-black"></div>
+                  )}
                 </button>
               </div>
             </div>
 
             <div className="rounded-[40px] border border-zinc-100 bg-white p-10">
-              <div className="mb-4 text-[10px] font-mono uppercase tracking-[0.4em] opacity-40">Optional Report Data</div>
+              <div className="mb-4 text-[10px] font-mono uppercase tracking-[0.4em] opacity-40">Report Data</div>
               <textarea
                 value={reportData}
                 onChange={(e) => setReportData(e.target.value)}
-                placeholder="Paste expected report_data to check quote binding..."
+                placeholder="Paste expected report_data to check bundle binding..."
                 className="h-28 w-full resize-none border-none bg-transparent font-mono text-[10px] leading-relaxed text-black placeholder:text-zinc-300 focus:outline-none"
               />
             </div>
@@ -169,10 +268,9 @@ export default function VerifyPage() {
               </div>
             )}
 
-            {!storedResult && (
+            {!evidenceBundle && (
               <div className="rounded-[40px] border border-zinc-100 bg-zinc-50/50 p-10 text-sm leading-relaxed text-zinc-500">
-                This verifier needs the upload bundle stored in the browser session. Run an upload first, then reopen
-                this page to verify the exact report-data binding.
+                Import an exported evidence bundle to verify without relying on session storage.
               </div>
             )}
 
@@ -181,16 +279,28 @@ export default function VerifyPage() {
                 <div className="flex-1">
                   <div
                     className={`flex items-center gap-3 text-[10px] font-mono uppercase tracking-[0.4em] mb-6 ${
-                      status === "success" ? "text-green-600" : "text-red-500"
+                      status === "verified"
+                        ? "text-green-600"
+                        : status === "partial"
+                          ? "text-amber-600"
+                          : "text-red-500"
                     }`}
                   >
-                    {status === "success" ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-                    {status === "success" ? "Evidence Verified" : "Evidence Rejected"}
+                    {status === "verified" ? (
+                      <CheckCircle2 className="h-3 w-3" />
+                    ) : (
+                      <AlertCircle className="h-3 w-3" />
+                    )}
+                    {status === "verified"
+                      ? "Evidence Verified"
+                      : status === "partial"
+                        ? "Evidence Partially Verified"
+                        : "Evidence Rejected"}
                   </div>
                   <p className="text-lg font-normal tracking-tighter leading-relaxed">
-                    The backend evaluated <span className="font-mono text-xs opacity-40">quote format</span>,
+                    The backend evaluated <span className="font-mono text-xs opacity-40">bundle signature</span>,
                     <span className="font-mono text-xs opacity-40"> report-data binding</span>, and
-                    <span className="font-mono text-xs opacity-40"> compose manifest pinning</span> for this bundle.
+                    <span className="font-mono text-xs opacity-40"> compose manifest pinning</span>.
                   </p>
                   {verification.warnings.length > 0 && (
                     <div className="mt-6 space-y-2 text-[10px] font-mono uppercase tracking-[0.3em] text-amber-600">
@@ -201,21 +311,35 @@ export default function VerifyPage() {
                   )}
                 </div>
                 <div className="grid grid-cols-1 gap-6 text-right text-[10px] font-mono lowercase opacity-60">
-                  <EvidenceRow label="quote_valid" value={verification.checks.quote_format_valid ? "true" : "false"} />
+                  <EvidenceRow
+                    label="quote_format"
+                    value={verification.checks.quote_format_valid ? "valid" : "invalid"}
+                  />
                   <EvidenceRow
                     label="report_data"
-                    value={verification.checks.report_data_matches_binding ? "matched" : "mismatch"}
-                  />
-                  <EvidenceRow label="compose_hash" value={verification.checks.compose_hash} />
-                  <EvidenceRow
-                    label="hardware"
                     value={
-                      verification.checks.hardware_quote_verified === null
-                        ? "not verified"
-                        : verification.checks.hardware_quote_verified
+                      verification.checks.report_data_matches_binding == null
+                        ? "not checked"
+                        : verification.checks.report_data_matches_binding
+                          ? "matched"
+                          : "mismatch"
+                    }
+                  />
+                  <EvidenceRow
+                    label="signature"
+                    value={
+                      verification.checks.signature_verified == null
+                        ? verification.checks.signing_key_configured
+                          ? "missing"
+                          : "disabled"
+                        : verification.checks.signature_verified
                           ? "verified"
                           : "failed"
                     }
+                  />
+                  <EvidenceRow
+                    label="compose"
+                    value={verification.checks.compose_images_pinned ? "pinned" : "unpinned"}
                   />
                 </div>
               </div>
@@ -235,7 +359,7 @@ export default function VerifyPage() {
   );
 }
 
-function VerificationStep({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
+function VerificationStep({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
     <div className="flex items-center gap-4 group">
       <div className="p-2 rounded-lg border border-zinc-50 group-hover:border-zinc-100 transition-colors">
