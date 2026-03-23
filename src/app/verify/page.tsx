@@ -17,11 +17,18 @@ import { verifyAttestation, type InferenceResult, type VerifyResponse } from "@/
 interface EvidenceBundleInput {
   quote?: string | null;
   report_data?: string | null;
+  event_log?: string | null;
+  vm_config?: string | null;
+  app_id?: string | null;
+  instance_id?: string | null;
+  device_id?: string | null;
   policy_id?: string;
   model_version?: string;
   source_identity?: string;
   file_hash?: string;
   result_hash?: string;
+  compose_hash?: string | null;
+  compose_images_pinned?: boolean | null;
   signature?: string | null;
 }
 
@@ -40,13 +47,20 @@ function readStoredResult(): InferenceResult | null {
 
 function bundleFromResult(result: InferenceResult): EvidenceBundleInput {
   return {
-    quote: result.attestation,
-    report_data: result.report_data,
+    quote: result.attestation_bundle?.quote ?? result.attestation,
+    report_data: result.attestation_bundle?.report_data ?? result.report_data,
+    event_log: result.attestation_bundle?.event_log,
+    vm_config: result.attestation_bundle?.vm_config,
+    app_id: result.attestation_bundle?.app_id,
+    instance_id: result.attestation_bundle?.instance_id,
+    device_id: result.attestation_bundle?.device_id,
     policy_id: result.policy_id,
     model_version: result.model_version,
     source_identity: result.source_identity,
     file_hash: result.verification_bundle.file_hash,
     result_hash: result.verification_bundle.result_hash,
+    compose_hash: result.verification_bundle.compose_hash,
+    compose_images_pinned: result.verification_bundle.compose_images_pinned,
     signature: result.verification_bundle.signature,
   };
 }
@@ -135,6 +149,10 @@ export default function VerifyPage() {
         source_identity: evidenceBundle.source_identity ?? "",
         file_hash: evidenceBundle.file_hash ?? "",
         result_hash: evidenceBundle.result_hash ?? "",
+        event_log: evidenceBundle.event_log ?? undefined,
+        vm_config: evidenceBundle.vm_config ?? undefined,
+        compose_hash: evidenceBundle.compose_hash ?? undefined,
+        compose_images_pinned: evidenceBundle.compose_images_pinned ?? undefined,
         signature: evidenceBundle.signature ?? undefined,
       });
 
@@ -187,7 +205,7 @@ export default function VerifyPage() {
               <VerificationStep
                 icon={<Cpu className="h-3 w-3" />}
                 title="Hardware"
-                desc="Quote format only unless official verifier is wired in"
+                desc="Phala quote verification plus RTMR replay when evidence is present"
               />
               <VerificationStep
                 icon={<Box className="h-3 w-3" />}
@@ -298,8 +316,9 @@ export default function VerifyPage() {
                         : "Evidence Rejected"}
                   </div>
                   <p className="text-lg font-normal tracking-tighter leading-relaxed">
-                    The backend evaluated <span className="font-mono text-xs opacity-40">bundle signature</span>,
-                    <span className="font-mono text-xs opacity-40"> report-data binding</span>, and
+                    The backend evaluated <span className="font-mono text-xs opacity-40">hardware quote validity</span>,
+                    <span className="font-mono text-xs opacity-40"> report-data binding</span>,
+                    <span className="font-mono text-xs opacity-40"> event-log replay</span>, and
                     <span className="font-mono text-xs opacity-40"> compose manifest pinning</span>.
                   </p>
                   {verification.warnings.length > 0 && (
@@ -312,17 +331,43 @@ export default function VerifyPage() {
                 </div>
                 <div className="grid grid-cols-1 gap-6 text-right text-[10px] font-mono lowercase opacity-60">
                   <EvidenceRow
-                    label="quote_format"
-                    value={verification.checks.quote_format_valid ? "valid" : "invalid"}
+                    label="hardware"
+                    value={
+                      verification.checks.hardware_quote_verified == null
+                        ? verification.checks.quote_provided
+                          ? "pending"
+                          : "no quote"
+                        : verification.checks.hardware_quote_verified
+                          ? "verified"
+                          : "failed"
+                    }
                   />
                   <EvidenceRow
                     label="report_data"
                     value={
-                      verification.checks.report_data_matches_binding == null
+                      verification.checks.quote_report_data_matches === false ||
+                      verification.checks.report_data_matches_binding === false
+                        ? "mismatch"
+                        : verification.checks.quote_report_data_matches === true
+                          ? "matched-to-quote"
+                          : verification.checks.report_data_matches_binding == null
                         ? "not checked"
-                        : verification.checks.report_data_matches_binding
-                          ? "matched"
-                          : "mismatch"
+                          : verification.checks.report_data_matches_binding
+                            ? "matched"
+                            : "mismatch"
+                    }
+                  />
+                  <EvidenceRow
+                    label="event_log"
+                    value={
+                      !verification.checks.event_log_provided
+                        ? "missing"
+                        : verification.checks.event_log_rtmr3_matches === false ||
+                            verification.checks.event_log_compose_hash_matches === false
+                          ? "mismatch"
+                          : verification.checks.event_log_rtmr3_matches === true
+                            ? "replayed"
+                            : "present"
                     }
                   />
                   <EvidenceRow
@@ -339,7 +384,16 @@ export default function VerifyPage() {
                   />
                   <EvidenceRow
                     label="compose"
-                    value={verification.checks.compose_images_pinned ? "pinned" : "unpinned"}
+                    value={
+                      verification.compose_hash_matches == null
+                        ? verification.checks.compose_images_pinned
+                          ? "pinned"
+                          : "unpinned"
+                        : verification.compose_hash_matches &&
+                            verification.checks.compose_images_pinned_matches
+                          ? "matched"
+                          : "mismatch"
+                    }
                   />
                 </div>
               </div>

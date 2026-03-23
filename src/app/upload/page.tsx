@@ -8,12 +8,20 @@ import Link from "next/link";
 
 const SUPPORTED_EXTENSIONS = [".pdf", ".json", ".txt"];
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const POLICY_OPTIONS = [
+  { value: "", label: "Auto Derive" },
+  { value: "Academic.Research_Minimization_v1", label: "Academic Research" },
+  { value: "Financial.PII_Redaction_v1", label: "Financial PII" },
+  { value: "General.Document_Minimization_v1", label: "General Documents" },
+];
 
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const [sourceIdentity, setSourceIdentity] = useState("");
+  const [policyId, setPolicyId] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -66,7 +74,10 @@ export default function UploadPage() {
     setError(null);
 
     try {
-      const result = await uploadDocument(file);
+      const result = await uploadDocument(file, {
+        source_identity: sourceIdentity,
+        policy_id: policyId,
+      });
       sessionStorage.setItem("inference_result", JSON.stringify(result));
       router.push("/result");
     } catch (err: unknown) {
@@ -100,17 +111,53 @@ export default function UploadPage() {
             </h1>
             <p className="text-sm text-zinc-400 font-extralight leading-relaxed mb-12">
               Submit documents to the configured backend for parsing and scoring. Attestation is returned only when
-              the API is running with dStack-backed TEE support.
+              the API is running with dStack-backed TEE support. Scanned PDFs are OCR&apos;d locally and uploaded
+              private data can feed training or inference workflows inside the same private pipeline.
             </p>
             
             <div className="space-y-4 pt-8 border-t border-zinc-50">
               <Requirement item="Client-side type and size checks before upload" />
+              <Requirement item="Scanned PDFs are OCR&apos;d with a local open-source model" />
               <Requirement item="Backend response includes quote and report data when available" />
+              <Requirement item="Documents can be used for private training inside a dStack / Phala deployment" />
+              <Requirement item="Source identity and policy can be auto-derived or set explicitly" />
               <Requirement item={appInfo?.tee_enabled ? "TEE mode reported by backend" : "Backend may be running without TEE"} />
             </div>
           </header>
 
           <div className="relative">
+            <div className="mb-10 grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <label className="flex flex-col gap-3">
+                <span className="text-[10px] font-mono uppercase tracking-[0.35em] opacity-40">
+                  Source Identity
+                </span>
+                <input
+                  type="text"
+                  value={sourceIdentity}
+                  onChange={(e) => setSourceIdentity(e.target.value)}
+                  placeholder="Auto derive from file type and profile"
+                  className="rounded-[22px] border border-zinc-100 bg-white px-5 py-4 text-sm tracking-tight placeholder:text-zinc-300 focus:border-zinc-200 focus:outline-none"
+                />
+              </label>
+
+              <label className="flex flex-col gap-3">
+                <span className="text-[10px] font-mono uppercase tracking-[0.35em] opacity-40">
+                  Release Policy
+                </span>
+                <select
+                  value={policyId}
+                  onChange={(e) => setPolicyId(e.target.value)}
+                  className="rounded-[22px] border border-zinc-100 bg-white px-5 py-4 text-sm tracking-tight focus:border-zinc-200 focus:outline-none"
+                >
+                  {POLICY_OPTIONS.map((option) => (
+                    <option key={option.value || "auto"} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
             <div 
               className={`group relative flex w-full flex-col items-center justify-center rounded-[40px] border border-zinc-100 bg-white p-24 transition-all duration-700 ${
                 file ? 'bg-zinc-50/50' : 'hover:bg-zinc-50/20'
@@ -141,8 +188,8 @@ export default function UploadPage() {
                     </div>
                     <p className="text-sm font-normal mb-1 self-start tracking-wider uppercase opacity-40">Drag document</p>
                     <p className="text-xs text-zinc-400 font-extralight leading-relaxed text-left">
-                      Files are posted to the backend API over the browser connection. Verification happens after the
-                      backend returns its evidence.
+                      Files are posted to the backend API over the browser connection. OCR, extraction, and downstream
+                      training-data preparation can stay local or run inside an attested dStack / Phala confidential VM.
                     </p>
                   </>
                 )}

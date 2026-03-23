@@ -24,13 +24,31 @@ function getApiUrl(): string {
 export interface InferenceResult {
   result: string;
   attestation: string | null;
+  attestation_bundle: AttestationBundle | null;
   report_data: string | null;
+  document_kind: string;
+  document_kind_label: string;
+  document_profile: string;
+  detector_confidence: string;
+  detected_terms: string[];
+  detector_summary: string;
   source_identity: string;
   policy_id: string;
   contribution_receipt: string;
   model_version: string;
   processing_mode: string;
   verification_bundle: VerificationBundle;
+}
+
+export interface AttestationBundle {
+  quote: string | null;
+  event_log: string | null;
+  report_data: string | null;
+  vm_config: string | null;
+  app_id: string | null;
+  instance_id: string | null;
+  device_id: string | null;
+  compose_hash: string | null;
 }
 
 export interface VerificationBundle {
@@ -54,6 +72,73 @@ export interface AppInfo {
   compose_images_pinned: boolean;
 }
 
+export interface TrainingPipeline {
+  pipeline_id: string;
+  pipeline_name: string;
+  status: string;
+  created_at: string;
+  objective: string;
+  document_kind: string;
+  source_identity: string;
+  policy_id: string;
+  private_ocr: boolean;
+  attested_training: boolean;
+  training_enabled: boolean;
+  deployment_target: string;
+  steps: Array<{
+    id: string;
+    title: string;
+    description: string;
+    status: string;
+  }>;
+}
+
+export interface TrainingPipelineRequest {
+  pipeline_name: string;
+  objective: string;
+  document_kind: string;
+  source_identity: string;
+  policy_id: string;
+  private_ocr: boolean;
+  attested_training: boolean;
+  training_enabled: boolean;
+  deployment_target: string;
+}
+
+export interface DeployWalkthrough {
+  target: string;
+  summary: string;
+  modes: Array<{
+    id: string;
+    title: string;
+    status: string;
+    description: string;
+  }>;
+  steps: Array<{
+    id: string;
+    title: string;
+    description: string;
+  }>;
+  commands: Array<{
+    title: string;
+    command: string;
+  }>;
+  environment: {
+    backend: string[];
+    frontend: string[];
+  };
+  vercel: {
+    root_directory: string;
+    framework: string;
+    required_env: string[];
+    notes: string[];
+  };
+  privacy_notes: string[];
+  references: string[];
+  compose_hash: string;
+  compose_images_pinned: boolean;
+}
+
 export interface VerifyPayload {
   quote?: string | null;
   report_data: string;
@@ -62,7 +147,16 @@ export interface VerifyPayload {
   source_identity: string;
   file_hash: string;
   result_hash: string;
+  event_log?: string | null;
+  vm_config?: string | null;
+  compose_hash?: string | null;
+  compose_images_pinned?: boolean | null;
   signature?: string | null;
+}
+
+export interface UploadMetadata {
+  source_identity?: string;
+  policy_id?: string;
 }
 
 export interface VerifyResponse {
@@ -77,6 +171,7 @@ export interface VerifyResponse {
   quote_report_data: string | null;
   report_data_matches: boolean | null;
   compose_hash_matches: boolean | null;
+  quote_checksum: string | null;
   reason: string | null;
   warnings: string[];
   checks: {
@@ -85,6 +180,15 @@ export interface VerifyResponse {
     quote_provided: boolean;
     quote_format_valid: boolean;
     hardware_quote_verified: boolean | null;
+    quote_report_data_matches: boolean | null;
+    event_log_provided: boolean;
+    event_log_compose_hash_matches: boolean | null;
+    event_log_rtmr3_matches: boolean | null;
+    vm_config_provided: boolean;
+    claimed_compose_hash: string | null;
+    claimed_compose_images_pinned: boolean | null;
+    compose_hash_matches: boolean | null;
+    compose_images_pinned_matches: boolean | null;
     signature_present: boolean;
     signature_format_valid: boolean | null;
     signature_verified: boolean | null;
@@ -107,7 +211,16 @@ async function readResponse(response: Response) {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${getApiUrl()}${path}`, init);
+  const apiUrl = `${getApiUrl()}${path}`;
+  let response: Response;
+
+  try {
+    response = await fetch(apiUrl, init);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Network request failed";
+    throw new Error(`Backend unreachable at ${apiUrl}. ${reason}`);
+  }
+
   const body = await readResponse(response);
 
   if (!response.ok) {
@@ -121,9 +234,18 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export async function uploadDocument(file: File): Promise<InferenceResult> {
+export async function uploadDocument(
+  file: File,
+  metadata?: UploadMetadata,
+): Promise<InferenceResult> {
   const formData = new FormData();
   formData.append("file", file);
+  if (metadata?.source_identity?.trim()) {
+    formData.append("source_identity", metadata.source_identity.trim());
+  }
+  if (metadata?.policy_id?.trim()) {
+    formData.append("policy_id", metadata.policy_id.trim());
+  }
 
   return requestJson<InferenceResult>("/upload", {
     method: "POST",
@@ -143,4 +265,24 @@ export async function verifyAttestation(payload: VerifyPayload): Promise<VerifyR
     },
     body: JSON.stringify(payload),
   });
+}
+
+export async function createTrainingPipeline(
+  payload: TrainingPipelineRequest,
+): Promise<TrainingPipeline> {
+  return requestJson<TrainingPipeline>("/training/pipelines", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function listTrainingPipelines(): Promise<{ pipelines: TrainingPipeline[] }> {
+  return requestJson<{ pipelines: TrainingPipeline[] }>("/training/pipelines");
+}
+
+export async function getDeployWalkthrough(): Promise<DeployWalkthrough> {
+  return requestJson<DeployWalkthrough>("/deploy/walkthrough");
 }

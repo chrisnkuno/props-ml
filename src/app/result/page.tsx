@@ -22,20 +22,31 @@ export default function ResultPage() {
   const [result] = useState<InferenceResult | null>(() => readStoredResult());
   const [copied, setCopied] = useState(false);
   const [bundleDownloaded, setBundleDownloaded] = useState(false);
+  const quoteHex = result?.attestation_bundle?.quote ?? result?.attestation ?? null;
+  const attestationSummary = [
+    result?.attestation_bundle?.event_log ? "event-log" : null,
+    result?.attestation_bundle?.vm_config ? "vm-config" : null,
+    result?.attestation_bundle?.app_id ? "app-id" : null,
+  ]
+    .filter(Boolean)
+    .join(" / ");
   const proofStatus = useMemo(() => {
     if (result?.verification_bundle.signature) {
       return "Signed evidence bundle ready";
     }
-    if (!result?.attestation) {
+    if (result?.attestation_bundle?.event_log) {
+      return "Quote, event log, and vm config captured";
+    }
+    if (!quoteHex) {
       return "Result available, attestation unavailable";
     }
 
-    return result.report_data ? "Quote and report data captured" : "Quote captured";
-  }, [result]);
+    return result?.report_data ? "Quote and report data captured" : "Quote captured";
+  }, [quoteHex, result]);
 
   const copyQuote = () => {
-    if (result?.attestation) {
-      navigator.clipboard.writeText(result.attestation);
+    if (quoteHex) {
+      navigator.clipboard.writeText(quoteHex);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -47,8 +58,13 @@ export default function ResultPage() {
     }
 
     const bundle = {
-      quote: result.attestation,
-      report_data: result.report_data,
+      quote: quoteHex,
+      event_log: result.attestation_bundle?.event_log,
+      report_data: result.attestation_bundle?.report_data ?? result.report_data,
+      vm_config: result.attestation_bundle?.vm_config,
+      app_id: result.attestation_bundle?.app_id,
+      instance_id: result.attestation_bundle?.instance_id,
+      device_id: result.attestation_bundle?.device_id,
       policy_id: result.policy_id,
       model_version: result.model_version,
       source_identity: result.source_identity,
@@ -57,6 +73,11 @@ export default function ResultPage() {
       compose_hash: result.verification_bundle.compose_hash,
       compose_images_pinned: result.verification_bundle.compose_images_pinned,
       signature: result.verification_bundle.signature,
+      document_kind: result.document_kind,
+      document_profile: result.document_profile,
+      detector_confidence: result.detector_confidence,
+      detected_terms: result.detected_terms,
+      detector_summary: result.detector_summary,
     };
     const blob = new Blob([JSON.stringify(bundle, null, 2)], {
       type: "application/json",
@@ -123,10 +144,29 @@ export default function ResultPage() {
             </div>
 
             <div className="grid grid-cols-2 gap-12 border-t border-zinc-50 pt-16">
+              <Stat label="Document Kind" value={result.document_kind_label} />
+              <Stat label="Profile" value={result.document_profile} />
               <Stat label="Source Identity" value={result.source_identity} />
               <Stat label="Release Policy" value={result.policy_id} />
               <Stat label="Model ID" value={result.model_version} />
               <Stat label="Compute Mode" value={result.processing_mode} />
+            </div>
+
+            <div className="mt-10 text-[10px] font-mono uppercase tracking-[0.35em] opacity-35">
+              Attestation Bundle: {attestationSummary || "quote-only-or-unavailable"}
+            </div>
+
+            <div className="mt-12 rounded-[32px] border border-zinc-100 p-8">
+              <div className="text-[10px] font-mono uppercase tracking-[0.35em] opacity-40">
+                Word Detector
+              </div>
+              <div className="mt-4 text-sm leading-relaxed text-zinc-600">{result.detector_summary}</div>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <DetectorChip value={`confidence:${result.detector_confidence}`} />
+                {result.detected_terms.map((term) => (
+                  <DetectorChip key={term} value={term} />
+                ))}
+              </div>
             </div>
           </div>
 
@@ -139,16 +179,16 @@ export default function ResultPage() {
                 </div>
                 <button 
                   onClick={copyQuote}
-                  disabled={!result.attestation}
+                  disabled={!quoteHex}
                   className="text-[10px] font-mono uppercase tracking-widest hover:text-blue-600 transition-colors"
                 >
-                  {copied ? "Copied" : result.attestation ? "Copy Hex" : "No Quote"}
+                  {copied ? "Copied" : quoteHex ? "Copy Hex" : "No Quote"}
                 </button>
               </div>
               
               <div className="bg-zinc-50/50 p-8 rounded-[30px] border border-zinc-100 relative overflow-hidden group">
                 <div className="font-mono text-[9px] leading-relaxed break-all opacity-40 max-h-[300px] overflow-y-auto pr-4 scrollbar-hide">
-                  {result.attestation ?? "This run did not return an attestation quote."}
+                  {quoteHex ?? "This run did not return an attestation quote."}
                 </div>
                 <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-zinc-50/80 via-transparent to-transparent opacity-100"></div>
               </div>
@@ -174,6 +214,13 @@ export default function ResultPage() {
                 <div className="h-px w-8 bg-black group-hover:w-16 transition-all duration-500"></div>
                 <span className="text-[10px] font-mono uppercase tracking-[0.4em]">Execute Proof Chain</span>
               </Link>
+              <Link
+                href="/train"
+                className="inline-flex items-center gap-6 group hover:gap-10 transition-all duration-500"
+              >
+                <div className="h-px w-8 bg-black group-hover:w-16 transition-all duration-500"></div>
+                <span className="text-[10px] font-mono uppercase tracking-[0.4em]">Open Training Planner</span>
+              </Link>
             </div>
           </aside>
         </div>
@@ -187,6 +234,14 @@ function Stat({ label, value }: { label: string, value: string }) {
     <div className="flex flex-col gap-2">
       <div className="text-[9px] font-mono uppercase tracking-[0.3em] opacity-30">{label}</div>
       <div className="text-sm font-normal tracking-tight uppercase">{value}</div>
+    </div>
+  );
+}
+
+function DetectorChip({ value }: { value: string }) {
+  return (
+    <div className="rounded-full border border-zinc-200 px-4 py-2 text-[10px] font-mono uppercase tracking-[0.28em] opacity-60">
+      {value}
     </div>
   );
 }

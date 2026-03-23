@@ -11,7 +11,10 @@ export default function Home() {
           <div className="text-xl font-normal lowercase tracking-tighter">props.dStack</div>
         </div>
         <div className="flex gap-12 text-xs font-mono uppercase tracking-[0.2em] opacity-60">
+          <Link href="/solutions" className="hover:opacity-100 transition-opacity">Use Cases</Link>
           <Link href="/verify" className="hover:opacity-100 transition-opacity">Verifier</Link>
+          <Link href="/train" className="hover:opacity-100 transition-opacity">Training</Link>
+          <Link href="/deploy" className="hover:opacity-100 transition-opacity">Deploy</Link>
           <a
             href="https://phala.network"
             target="_blank"
@@ -37,7 +40,7 @@ export default function Home() {
               at Edge.
             </h1>
             <p className="text-xl sm:text-2xl text-zinc-400 font-extralight leading-relaxed max-w-md mb-16">
-              Document processing with attestation support when the backend is running inside dStack on TDX.
+              Private document OCR, training-data preparation, and inference with a practical no-credit path now, plus a clear upgrade path to dStack / Phala attestation later.
             </p>
             
             <Link
@@ -59,14 +62,44 @@ export default function Home() {
             <Feature 
               id="02"
               title="Isolation"
-              description="The backend can run inside a confidential VM, but local mode is supported too."
+              description="The backend can run inside a confidential VM so private documents can be used for training and inference inside the TEE boundary."
             />
             <Feature 
               id="03"
               title="Verification"
               description="Verifier flow checks backend evidence instead of simulating a green result."
             />
+            <Feature 
+              id="04"
+              title="Use Cases"
+              description="Healthcare, lending, enterprise AI, consumer assistants, and private training markets."
+            />
           </div>
+        </div>
+
+        <section className="mt-28 grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <TeaserCard
+            title="Healthcare"
+            description="Authenticated EHR and diagnostics records for model training and scoring."
+          />
+          <TeaserCard
+            title="Financial Services"
+            description="Underwriting, affordability checks, and fraud review over private source documents."
+          />
+          <TeaserCard
+            title="Enterprise AI"
+            description="Trustworthy ingestion for ERP, CRM, billing, transaction, and internal record systems."
+          />
+        </section>
+
+        <div className="mt-10">
+          <Link
+            href="/solutions"
+            className="inline-flex items-center gap-4 text-[10px] font-mono uppercase tracking-[0.4em] opacity-60 transition-opacity hover:opacity-100"
+          >
+            Explore Product Uses
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
 
         {/* Bottom Accent */}
@@ -104,6 +137,16 @@ function Feature({ id, title, description }: { id: string, title: string, descri
       <p className="text-xs leading-relaxed text-zinc-400 font-extralight tracking-normal">
         {description}
       </p>
+    </div>
+  );
+}
+
+function TeaserCard({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-[32px] border border-zinc-100 bg-zinc-50/40 p-8">
+      <div className="text-[10px] font-mono uppercase tracking-[0.35em] opacity-30">Industry</div>
+      <div className="mt-4 text-2xl font-normal tracking-tight">{title}</div>
+      <p className="mt-3 max-w-xs text-sm leading-relaxed text-zinc-500">{description}</p>
     </div>
   );
 }
